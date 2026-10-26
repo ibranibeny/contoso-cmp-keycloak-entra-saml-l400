@@ -3,6 +3,7 @@
 Static GitHub Pages site documenting how Contoso's Cloud Management Platform (CMP) signs people in with **Keycloak** (OpenID Connect) and how a separate **SAML 2.0** trust lets **Microsoft Entra ID** admit them to Azure as **B2B guests** (Domainless SAML/WS-Fed identity provider).
 
 * Start page: `index.html`
+* Video walkthrough: `video-walkthrough.html` — the six build steps on screen (about 10 minutes, no voice-over) with English and Bahasa Indonesia captions and chapters; files in `assets/video/`
 * Concepts: SAML 2.0, Microsoft Entra ID & B2B, Keycloak, end-to-end flows
 * Architecture: deployed PoC topology with official Azure Architecture Icons and a Well-Architected review (page 5); Azure landing zone target architecture — management groups, hub-and-spoke, Application Gateway WAF, private endpoints, PIM (page 5b); pillar-by-pillar Well-Architected alignment with an operations, monitoring and governance diagram, failure-mode analysis and trade-offs (page 5c)
 * Guides G1–G9: deploy, configure Keycloak, export metadata, Entra Domainless IdP, guests & RBAC, users, CMP app, end-to-end test, operations — each with scripts and screenshots

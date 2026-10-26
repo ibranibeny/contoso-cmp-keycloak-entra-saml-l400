@@ -1,0 +1,37 @@
+WEBVTT
+
+ch-1
+00:00:00.000 --> 00:00:15.800
+Intro
+
+ch-2
+00:00:15.800 --> 00:02:06.600
+How the connection works
+
+ch-3
+00:02:06.600 --> 00:03:15.200
+Step 1 · Deploy Keycloak on Azure
+
+ch-4
+00:03:15.200 --> 00:04:20.000
+Step 2 · Create the SAML client in Keycloak
+
+ch-5
+00:04:20.000 --> 00:05:23.100
+Step 3 · Check the SAML metadata
+
+ch-6
+00:05:23.100 --> 00:07:14.600
+Step 4 · Add the Domainless SAML IdP in Entra ID
+
+ch-7
+00:07:14.600 --> 00:07:55.200
+Step 5 · Invite the guest, MFA and Azure RBAC
+
+ch-8
+00:07:55.200 --> 00:08:57.200
+Step 6 · Test and troubleshoot
+
+ch-9
+00:08:57.200 --> 00:09:44.500
+Operate and recap

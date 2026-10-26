@@ -1,0 +1,293 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:08.100 line:83% position:50% align:center size:92%
+Panduan ini membangun trust SAML 2.0 yang memungkinkan pengguna Keycloak login ke Azure sebagai tamu B2B Contoso.
+
+2
+00:00:08.100 --> 00:00:15.800 line:83% position:50% align:center size:92%
+Contoso adalah perusahaan fiktif. Layar PoC adalah tangkapan yang sudah disanitasi; layar ilustratif diberi label.
+
+3
+00:00:15.800 --> 00:00:24.400 line:83% position:50% align:center size:92%
+Ada dua trust. Trust A: frontend CMP memakai Keycloak untuk login melalui OpenID Connect.
+
+4
+00:00:24.400 --> 00:00:32.100 line:83% position:50% align:center size:92%
+Trust B yang dibangun di video ini: Microsoft Entra ID mempercayai Keycloak sebagai identity provider SAML 2.0.
+
+5
+00:00:32.100 --> 00:00:40.800 line:83% position:50% align:center size:92%
+Tidak ada penerusan token: CMP hanya membuka tautan portal khusus tenant. Entra mengautentikasi tamu sendiri melalui Trust B.
+
+6
+00:00:40.800 --> 00:00:50.300 line:83% position:50% align:center size:92%
+Hanya pertama kali: tamu membuka undangan. Redirect URL-nya membawa domain_hint = Issuer URI Keycloak.
+
+7
+00:00:50.300 --> 00:00:57.800 line:83% position:50% align:center size:92%
+Karena IdP-nya Domainless, Entra mengarahkan berdasarkan Issuer URI tersebut dan tidak memeriksa domain email.
+
+8
+00:00:57.800 --> 00:01:05.500 line:83% position:50% align:center size:92%
+Setiap login: tamu membuka Azure portal dengan tenant Contoso di URL-nya.
+
+9
+00:01:05.500 --> 00:01:14.700 line:83% position:50% align:center size:92%
+Entra mengalihkan browser ke endpoint SAML Keycloak dengan AuthnRequest. Issuer-nya URL tenant; permintaan ini tidak ditandatangani.
+
+10
+00:01:14.700 --> 00:01:24.100 line:83% position:50% align:center size:92%
+Keycloak mencari client yang ID-nya sama dengan Issuer tersebut, lalu memakai ulang sesi SSO atau meminta pengguna login.
+
+11
+00:01:24.100 --> 00:01:31.600 line:83% position:50% align:center size:92%
+Keycloak membangun assertion: NameID persistent, klaim email, dan tenant Contoso sebagai audience.
+
+12
+00:01:31.600 --> 00:01:41.400 line:83% position:50% align:center size:92%
+Keycloak mengembalikan form auto-POST; browser mengirim SAMLResponse bertanda tangan ke login.microsoftonline.com/login.srf.
+
+13
+00:01:41.400 --> 00:01:50.400 line:83% position:50% align:center size:92%
+Entra memvalidasi tanda tangan, issuer, audience, recipient, dan waktu, lalu menemukan tamu melalui asosiasi IdP eksternalnya.
+
+14
+00:01:50.400 --> 00:02:00.100 line:83% position:50% align:center size:92%
+Pada penggunaan pertama Entra menampilkan consent, lalu registrasi atau tantangan MFA di tenant Contoso, dan Conditional Access.
+
+15
+00:02:00.100 --> 00:02:06.600 line:83% position:50% align:center size:92%
+Entra menerbitkan token untuk portal, dan Azure RBAC menentukan apa yang dapat dilihat tamu.
+
+16
+00:02:06.600 --> 00:02:16.900 line:83% position:50% align:center size:92%
+Langkah 1: deploy-sso.ps1 bekerja bertahap. Validate -Offline mengompilasi tujuh template Bicep SSO: tanpa login, tanpa panggilan cloud.
+
+17
+00:02:16.900 --> 00:02:25.000 line:83% position:50% align:center size:92%
+Validate lalu memeriksa akun, resource provider, SKU VM, dan kuota di Indonesia Central. Sifatnya read-only.
+
+18
+00:02:25.000 --> 00:02:33.600 line:83% position:50% align:center size:92%
+Apply meminta konfirmasi, lalu membuat resource SSO yang terisolasi di rg-cmp-sso-indonesia-poc.
+
+19
+00:02:33.600 --> 00:02:42.300 line:83% position:50% align:center size:92%
+Verify membuktikan HTTPS, issuer, dan URL metadata SAML. identityLogin tetap NOT VERIFIED: itu memerlukan login sungguhan.
+
+20
+00:02:42.300 --> 00:02:50.600 line:83% position:50% align:center size:92%
+Tangkapan PoC: VM Keycloak berjalan di Ubuntu 24.04 dengan ukuran Standard D2s v5 di Indonesia Central.
+
+21
+00:02:50.600 --> 00:02:58.300 line:83% position:50% align:center size:92%
+PoC memakai label DNS Azure ini untuk HTTPS; panduan ini menuliskan origin Keycloak sebagai sso.contoso.com.
+
+22
+00:02:58.300 --> 00:03:06.400 line:83% position:50% align:center size:92%
+Network security group hanya mengizinkan port 443, ditambah port 80 untuk tantangan sertifikat ACME.
+
+23
+00:03:06.400 --> 00:03:15.200 line:83% position:50% align:center size:92%
+Aturan 200 menolak semua trafik masuk lainnya, dan tidak ada aturan SSH. Caddy hanya memublikasikan path realm dan resources.
+
+24
+00:03:15.200 --> 00:03:26.100 line:83% position:50% align:center size:92%
+Langkah 2: di realm cmp-pdf, buat client SAML dengan Client ID yang sama dengan Issuer dari Entra: URL tenant, termasuk garis miring di akhir.
+
+25
+00:03:26.100 --> 00:03:35.300 line:83% position:50% align:center size:92%
+Redirect URI: ACS milik Entra, https://login.microsoftonline.com/login.srf. Biarkan IdP-initiated SSO kosong: Entra yang memulai alur.
+
+26
+00:03:35.300 --> 00:03:44.500 line:83% position:50% align:center size:92%
+Format Name ID: persistent, dan paksakan. Entra mewajibkan NameID persistent dari identity provider SAML.
+
+27
+00:03:44.500 --> 00:03:50.600 line:83% position:50% align:center size:92%
+Force POST binding: respons bertanda tangan selalu kembali ke Entra melalui HTTP-POST.
+
+28
+00:03:50.600 --> 00:03:56.900 line:83% position:50% align:center size:92%
+Tandatangani dokumen sekaligus assertion, menggunakan RSA_SHA256.
+
+29
+00:03:56.900 --> 00:04:04.300 line:83% position:50% align:center size:92%
+Client signature required tetap nonaktif: Entra tidak menandatangani permintaan autentikasi yang dikirimnya.
+
+30
+00:04:04.300 --> 00:04:14.200 line:83% position:50% align:center size:92%
+Tambahkan mapper User Property: email ke atribut http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress.
+
+31
+00:04:14.200 --> 00:04:20.000 line:83% position:50% align:center size:92%
+Entra mewajibkan klaim ini. Tanpanya, login gagal dengan AADSTS5000819.
+
+32
+00:04:20.000 --> 00:04:30.700 line:83% position:50% align:center size:92%
+Langkah 3: ambil metadata IdP dari https://sso.contoso.com/realms/cmp-pdf/protocol/saml/descriptor. entityID-nya adalah URL realm.
+
+33
+00:04:30.700 --> 00:04:37.200 line:83% position:50% align:center size:92%
+Metadata ini memuat sertifikat penandatanganan realm dan menawarkan format NameID persistent.
+
+34
+00:04:37.200 --> 00:04:44.300 line:83% position:50% align:center size:92%
+SingleSignOnService adalah …/protocol/saml. Entra memakainya sebagai passive authentication endpoint.
+
+35
+00:04:44.300 --> 00:04:50.700 line:83% position:50% align:center size:92%
+Admin console tidak dipublikasikan: path admin mengembalikan 404 dari internet.
+
+36
+00:04:50.700 --> 00:05:00.700 line:83% position:50% align:center size:92%
+configure-cmp-federation.ps1 secara default hanya preview: memvalidasi metadata publik dan tidak menulis apa pun ke tenant.
+
+37
+00:05:00.700 --> 00:05:09.100 line:83% position:50% align:center size:92%
+Skrip mencetak input Entra yang tepat: Issuer URI, endpoint passive sign-in, URL metadata, dan sertifikat penandatanganan.
+
+38
+00:05:09.100 --> 00:05:17.200 line:83% position:50% align:center size:92%
+Skrip juga mencantumkan yang diharapkan Entra: audience tenant, ACS login.srf, NameID persistent, dan klaim email.
+
+39
+00:05:17.200 --> 00:05:23.100 line:83% position:50% align:center size:92%
+ssoVerified bernilai false: preview membuktikan input, bukan login yang berhasil.
+
+40
+00:05:23.100 --> 00:05:32.500 line:83% position:50% align:center size:92%
+Langkah 4: di Microsoft Entra admin center, buka Entra ID › External Identities › All identity providers.
+
+41
+00:05:32.500 --> 00:05:40.800 line:83% position:50% align:center size:92%
+Pilih tab Custom, lalu Add new › SAML/WS-Fed. Login minimal sebagai External Identity Provider Administrator.
+
+42
+00:05:40.800 --> 00:05:47.400 line:83% position:50% align:center size:92%
+Display name: CMP Keycloak SSO. Identity provider protocol: SAML.
+
+43
+00:05:47.400 --> 00:05:56.400 line:83% position:50% align:center size:92%
+Centang Domainless: Entra tidak memeriksa domain email pengguna. Biarkan domain kosong; hanya satu IdP seperti ini per tenant.
+
+44
+00:05:56.400 --> 00:06:05.000 line:83% position:50% align:center size:92%
+Pilih Input metadata manually. Issuer URI: URL realm, https://sso.contoso.com/realms/cmp-pdf.
+
+45
+00:06:05.000 --> 00:06:13.300 line:83% position:50% align:center size:92%
+Passive authentication endpoint: …/protocol/saml. Certificate: sertifikat penandatanganan Base64 dari metadata.
+
+46
+00:06:13.300 --> 00:06:20.700 line:83% position:50% align:center size:92%
+Tambahkan URL metadata: Entra dapat memperbarui sertifikat penandatanganan secara otomatis saat kedaluwarsa.
+
+47
+00:06:20.700 --> 00:06:30.000 line:83% position:50% align:center size:92%
+Simpan. CMP Keycloak SSO muncul di tab Custom: protokol SAML, tanpa domain, dan tanggal kedaluwarsa sertifikat terlihat.
+
+48
+00:06:30.000 --> 00:06:37.300 line:83% position:50% align:center size:92%
+Kebijakan ini bisa memerlukan 5–10 menit untuk berlaku. Jangan menebus undangan selama jeda itu.
+
+49
+00:06:37.300 --> 00:06:42.800 line:83% position:50% align:center size:92%
+Buka kembali provider tersebut: Domainless tercentang.
+
+50
+00:06:42.800 --> 00:06:52.000 line:83% position:50% align:center size:92%
+Tidak ada domain yang terdaftar. Pemeriksaan Graph dari skrip menandai Domainless perlu dikonfirmasi di admin center, jadi pastikan di sini.
+
+51
+00:06:52.000 --> 00:07:02.300 line:83% position:50% align:center size:92%
+-Verify membaca konfigurasi federasi melalui Microsoft Graph dan membandingkan issuer, protocol, endpoint, dan sertifikat.
+
+52
+00:07:02.300 --> 00:07:06.900 line:83% position:50% align:center size:92%
+configurationMatched bernilai true untuk issuer Keycloak.
+
+53
+00:07:06.900 --> 00:07:14.600 line:83% position:50% align:center size:92%
+ssoVerified tetap false. Trust yang tersimpan hanyalah konfigurasi; buktinya adalah login tamu yang sesungguhnya.
+
+54
+00:07:14.600 --> 00:07:22.800 line:83% position:50% align:center size:92%
+Langkah 5: susun redirect URL undangan dengan domain_hint yang sama dengan Issuer URI Keycloak.
+
+55
+00:07:22.800 --> 00:07:31.200 line:83% position:50% align:center size:92%
+Learn mewajibkan domain_hint = Issuer URI. Komposisi URL yang tepat masih PoC item yang perlu divalidasi di tenant Anda.
+
+56
+00:07:31.200 --> 00:07:38.100 line:83% position:50% align:center size:92%
+New-MgInvitation membuat akun tamu. Sampai undangan ditebus, statusnya PendingAcceptance.
+
+57
+00:07:38.100 --> 00:07:47.300 line:83% position:50% align:center size:92%
+Berikan Azure RBAC pada cakupan terkecil: Reader pada rg-cmp-sso-indonesia-poc, di-deploy dari template Bicep.
+
+58
+00:07:47.300 --> 00:07:55.200 line:83% position:50% align:center size:92%
+Wajibkan MFA untuk tamu melalui Conditional Access. MFA wajib dari Azure juga berlaku untuk login ke Azure portal.
+
+59
+00:07:55.200 --> 00:08:05.600 line:83% position:50% align:center size:92%
+Langkah 6: uji di jendela privat dengan developer tools browser merekam. Dekode SAMLRequest dengan tools/saml_decode.py.
+
+60
+00:08:05.600 --> 00:08:13.300 line:83% position:50% align:center size:92%
+Periksa bahwa Issuer sama persis dengan client ID Keycloak, dan permintaan tidak membawa tanda tangan.
+
+61
+00:08:13.300 --> 00:08:19.000 line:83% position:50% align:center size:92%
+Lalu dekode SAMLResponse yang dikirim ke login.srf dan baca ringkasannya.
+
+62
+00:08:19.000 --> 00:08:26.400 line:83% position:50% align:center size:92%
+Bentuk yang diharapkan: Issuer adalah URL realm, dan seluruh Response ditandatangani.
+
+63
+00:08:26.400 --> 00:08:31.300 line:83% position:50% align:center size:92%
+Assertion juga ditandatangani, dan NameID-nya persistent.
+
+64
+00:08:31.300 --> 00:08:37.300 line:83% position:50% align:center size:92%
+Recipient-nya adalah ACS Entra, https://login.microsoftonline.com/login.srf.
+
+65
+00:08:37.300 --> 00:08:44.600 line:83% position:50% align:center size:92%
+Audience-nya adalah URL tenant Contoso, yang juga menjadi client ID Keycloak.
+
+66
+00:08:44.600 --> 00:08:49.200 line:83% position:50% align:center size:92%
+Atribut emailaddress membawa email tamu.
+
+67
+00:08:49.200 --> 00:08:57.200 line:83% position:50% align:center size:92%
+Di PoC, uji T1 dan T2 lulus. T3 sampai T8 (penebusan undangan, login portal, MFA, otorisasi) masih terbuka.
+
+68
+00:08:57.200 --> 00:09:03.800 line:83% position:50% align:center size:92%
+Operasional: tambahkan kunci penandatanganan realm baru yang belum aktif.
+
+69
+00:09:03.800 --> 00:09:10.700 line:83% position:50% align:center size:92%
+Pada jendela perubahan, aktifkan kunci itu dan pastikan metadata memublikasikan sertifikat baru.
+
+70
+00:09:10.700 --> 00:09:18.600 line:83% position:50% align:center size:92%
+Segera perbarui sertifikat federasi di Entra: rotasi sebelum kedaluwarsa tidak diperbarui otomatis.
+
+71
+00:09:18.600 --> 00:09:25.100 line:83% position:50% align:center size:92%
+Setelah login dengan kunci baru terverifikasi, jadikan kunci lama passive, lalu hapus.
+
+72
+00:09:25.100 --> 00:09:34.000 line:83% position:50% align:center size:92%
+Ringkasan: Keycloak di Azure sudah terbukti. Client SAML, IdP Entra, tamu, dan RBAC sudah dikonfigurasi, belum end-to-end.
+
+73
+00:09:34.000 --> 00:09:44.500 line:83% position:50% align:center size:92%
+Berikutnya: penebusan undangan tamu dan login Azure portal dengan MFA. Panduan lengkap, skrip, dan rencana uji ada di situs ini.

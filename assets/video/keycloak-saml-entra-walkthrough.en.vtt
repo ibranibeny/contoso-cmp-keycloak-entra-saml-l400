@@ -1,0 +1,293 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:08.100 line:83% position:50% align:center size:92%
+This walkthrough builds the SAML 2.0 trust that lets a Keycloak user sign in to Azure as a Contoso B2B guest.
+
+2
+00:00:08.100 --> 00:00:15.800 line:83% position:50% align:center size:92%
+Contoso is fictitious. PoC screens are sanitized captures; illustrative screens are labelled as such.
+
+3
+00:00:15.800 --> 00:00:24.400 line:83% position:50% align:center size:92%
+There are two trusts. Trust A: the CMP frontend signs users in with Keycloak over OpenID Connect.
+
+4
+00:00:24.400 --> 00:00:32.100 line:83% position:50% align:center size:92%
+Trust B is what this video builds: Microsoft Entra ID trusts Keycloak as a SAML 2.0 identity provider.
+
+5
+00:00:32.100 --> 00:00:40.800 line:83% position:50% align:center size:92%
+No token forwarding: CMP only opens a tenant-scoped portal link. Entra authenticates the guest itself, through Trust B.
+
+6
+00:00:40.800 --> 00:00:50.300 line:83% position:50% align:center size:92%
+First time only: the guest opens the invitation. Its redirect URL carries domain_hint = the Keycloak Issuer URI.
+
+7
+00:00:50.300 --> 00:00:57.800 line:83% position:50% align:center size:92%
+Because the IdP is Domainless, Entra routes by that Issuer URI and does not check the email domain.
+
+8
+00:00:57.800 --> 00:01:05.500 line:83% position:50% align:center size:92%
+Every sign-in: the guest opens the Azure portal with the Contoso tenant in the URL.
+
+9
+00:01:05.500 --> 00:01:14.700 line:83% position:50% align:center size:92%
+Entra redirects the browser to the Keycloak SAML endpoint with an AuthnRequest. Its Issuer is the tenant URL; it is not signed.
+
+10
+00:01:14.700 --> 00:01:24.100 line:83% position:50% align:center size:92%
+Keycloak finds the client whose ID equals that Issuer, then reuses its SSO session or asks the user to sign in.
+
+11
+00:01:24.100 --> 00:01:31.600 line:83% position:50% align:center size:92%
+It builds the assertion: persistent NameID, the email claim, and the Contoso tenant as the audience.
+
+12
+00:01:31.600 --> 00:01:41.400 line:83% position:50% align:center size:92%
+Keycloak returns an auto-POST form; the browser posts the signed SAMLResponse to login.microsoftonline.com/login.srf.
+
+13
+00:01:41.400 --> 00:01:50.400 line:83% position:50% align:center size:92%
+Entra validates signature, issuer, audience, recipient and time, then finds the guest through its external IdP association.
+
+14
+00:01:50.400 --> 00:02:00.100 line:83% position:50% align:center size:92%
+On first use Entra shows consent, then MFA registration or challenge in the Contoso tenant, and Conditional Access.
+
+15
+00:02:00.100 --> 00:02:06.600 line:83% position:50% align:center size:92%
+Entra issues tokens for the portal, and Azure RBAC decides what the guest can see.
+
+16
+00:02:06.600 --> 00:02:16.900 line:83% position:50% align:center size:92%
+Step 1: deploy-sso.ps1 works in phases. Validate -Offline compiles the seven SSO Bicep templates: no sign-in, no cloud calls.
+
+17
+00:02:16.900 --> 00:02:25.000 line:83% position:50% align:center size:92%
+Validate then checks the account, resource providers, VM SKU and quota in Indonesia Central. It is read-only.
+
+18
+00:02:25.000 --> 00:02:33.600 line:83% position:50% align:center size:92%
+Apply asks for confirmation, then creates the isolated SSO resources in rg-cmp-sso-indonesia-poc.
+
+19
+00:02:33.600 --> 00:02:42.300 line:83% position:50% align:center size:92%
+Verify proves HTTPS, the issuer and the SAML metadata URL. identityLogin stays NOT VERIFIED: that needs a real sign-in.
+
+20
+00:02:42.300 --> 00:02:50.600 line:83% position:50% align:center size:92%
+PoC capture: the Keycloak VM runs Ubuntu 24.04 on a Standard D2s v5 in Indonesia Central.
+
+21
+00:02:50.600 --> 00:02:58.300 line:83% position:50% align:center size:92%
+The PoC used this Azure DNS label for HTTPS; this guide writes the Keycloak origin as sso.contoso.com.
+
+22
+00:02:58.300 --> 00:03:06.400 line:83% position:50% align:center size:92%
+The network security group allows only 443, plus 80 for the ACME certificate challenge.
+
+23
+00:03:06.400 --> 00:03:15.200 line:83% position:50% align:center size:92%
+Rule 200 denies all other inbound traffic, and there is no SSH rule. Caddy publishes only the realm and resources paths.
+
+24
+00:03:15.200 --> 00:03:26.100 line:83% position:50% align:center size:92%
+Step 2: in realm cmp-pdf, create a SAML client whose Client ID equals the Issuer Entra sends: the tenant URL, trailing slash included.
+
+25
+00:03:26.100 --> 00:03:35.300 line:83% position:50% align:center size:92%
+Redirect URI: the Entra ACS, https://login.microsoftonline.com/login.srf. Leave IdP-initiated SSO empty: Entra starts the flow.
+
+26
+00:03:35.300 --> 00:03:44.500 line:83% position:50% align:center size:92%
+Name ID format: persistent, and force it. Entra requires a persistent NameID from a SAML identity provider.
+
+27
+00:03:44.500 --> 00:03:50.600 line:83% position:50% align:center size:92%
+Force POST binding: the signed response always returns to Entra by HTTP-POST.
+
+28
+00:03:50.600 --> 00:03:56.900 line:83% position:50% align:center size:92%
+Sign both the documents and the assertions, using RSA_SHA256.
+
+29
+00:03:56.900 --> 00:04:04.300 line:83% position:50% align:center size:92%
+Client signature required stays off: Entra does not sign the authentication requests it sends.
+
+30
+00:04:04.300 --> 00:04:14.200 line:83% position:50% align:center size:92%
+Add a User Property mapper: email to the attribute http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress.
+
+31
+00:04:14.200 --> 00:04:20.000 line:83% position:50% align:center size:92%
+Entra requires this claim. Without it, sign-in fails with AADSTS5000819.
+
+32
+00:04:20.000 --> 00:04:30.700 line:83% position:50% align:center size:92%
+Step 3: fetch the IdP metadata from https://sso.contoso.com/realms/cmp-pdf/protocol/saml/descriptor. The entityID is the realm URL.
+
+33
+00:04:30.700 --> 00:04:37.200 line:83% position:50% align:center size:92%
+It carries the realm signing certificate and offers the persistent NameID format.
+
+34
+00:04:37.200 --> 00:04:44.300 line:83% position:50% align:center size:92%
+SingleSignOnService is …/protocol/saml. Entra uses it as the passive authentication endpoint.
+
+35
+00:04:44.300 --> 00:04:50.700 line:83% position:50% align:center size:92%
+The admin console is not published: the admin path returns 404 from the internet.
+
+36
+00:04:50.700 --> 00:05:00.700 line:83% position:50% align:center size:92%
+configure-cmp-federation.ps1 is a preview by default: it validates the public metadata and writes nothing to the tenant.
+
+37
+00:05:00.700 --> 00:05:09.100 line:83% position:50% align:center size:92%
+It prints the exact Entra inputs: Issuer URI, passive sign-in endpoint, metadata URL and the signing certificate.
+
+38
+00:05:09.100 --> 00:05:17.200 line:83% position:50% align:center size:92%
+It also lists what Entra expects back: tenant audience, login.srf ACS, persistent NameID and the email claim.
+
+39
+00:05:17.200 --> 00:05:23.100 line:83% position:50% align:center size:92%
+ssoVerified is false: a preview proves the inputs, not a working sign-in.
+
+40
+00:05:23.100 --> 00:05:32.500 line:83% position:50% align:center size:92%
+Step 4: in the Microsoft Entra admin center, browse to Entra ID › External Identities › All identity providers.
+
+41
+00:05:32.500 --> 00:05:40.800 line:83% position:50% align:center size:92%
+Select the Custom tab, then Add new › SAML/WS-Fed. Sign in as at least External Identity Provider Administrator.
+
+42
+00:05:40.800 --> 00:05:47.400 line:83% position:50% align:center size:92%
+Display name: CMP Keycloak SSO. Identity provider protocol: SAML.
+
+43
+00:05:47.400 --> 00:05:56.400 line:83% position:50% align:center size:92%
+Tick Domainless: Entra then does no domain check of the user’s email. Leave the domain empty; only one such IdP per tenant.
+
+44
+00:05:56.400 --> 00:06:05.000 line:83% position:50% align:center size:92%
+Choose Input metadata manually. Issuer URI: the realm URL, https://sso.contoso.com/realms/cmp-pdf.
+
+45
+00:06:05.000 --> 00:06:13.300 line:83% position:50% align:center size:92%
+Passive authentication endpoint: …/protocol/saml. Certificate: the Base64 signing certificate from the metadata.
+
+46
+00:06:13.300 --> 00:06:20.700 line:83% position:50% align:center size:92%
+Add the metadata URL: Entra can then renew the signing certificate automatically when it expires.
+
+47
+00:06:20.700 --> 00:06:30.000 line:83% position:50% align:center size:92%
+Save. CMP Keycloak SSO appears on the Custom tab: protocol SAML, no domains, certificate expiry shown.
+
+48
+00:06:30.000 --> 00:06:37.300 line:83% position:50% align:center size:92%
+The policy can take 5–10 minutes to take effect. Do not redeem an invitation during that window.
+
+49
+00:06:37.300 --> 00:06:42.800 line:83% position:50% align:center size:92%
+Open the provider again: Domainless is ticked.
+
+50
+00:06:42.800 --> 00:06:52.000 line:83% position:50% align:center size:92%
+No domain is listed. The script’s Graph check reports Domainless as requiring admin center confirmation, so confirm it here.
+
+51
+00:06:52.000 --> 00:07:02.300 line:83% position:50% align:center size:92%
+-Verify reads the federation configurations through Microsoft Graph and compares issuer, protocol, endpoint and certificate.
+
+52
+00:07:02.300 --> 00:07:06.900 line:83% position:50% align:center size:92%
+configurationMatched is true for the Keycloak issuer.
+
+53
+00:07:06.900 --> 00:07:14.600 line:83% position:50% align:center size:92%
+ssoVerified stays false. A saved trust is configuration; the proof is a real guest sign-in.
+
+54
+00:07:14.600 --> 00:07:22.800 line:83% position:50% align:center size:92%
+Step 5: build the invitation redirect URL with domain_hint equal to the Keycloak Issuer URI.
+
+55
+00:07:22.800 --> 00:07:31.200 line:83% position:50% align:center size:92%
+Learn requires domain_hint = Issuer URI. The exact URL composition is still a PoC item to validate in your tenant.
+
+56
+00:07:31.200 --> 00:07:38.100 line:83% position:50% align:center size:92%
+New-MgInvitation creates the guest. Until it is redeemed, the status is PendingAcceptance.
+
+57
+00:07:38.100 --> 00:07:47.300 line:83% position:50% align:center size:92%
+Grant Azure RBAC at the smallest scope: Reader on rg-cmp-sso-indonesia-poc, deployed from a Bicep template.
+
+58
+00:07:47.300 --> 00:07:55.200 line:83% position:50% align:center size:92%
+Require MFA for guests with Conditional Access. Azure mandatory MFA also applies to Azure portal sign-ins.
+
+59
+00:07:55.200 --> 00:08:05.600 line:83% position:50% align:center size:92%
+Step 6: test in a private window with the browser developer tools recording. Decode the SAMLRequest with tools/saml_decode.py.
+
+60
+00:08:05.600 --> 00:08:13.300 line:83% position:50% align:center size:92%
+Check that the Issuer equals the Keycloak client ID exactly, and that the request carries no signature.
+
+61
+00:08:13.300 --> 00:08:19.000 line:83% position:50% align:center size:92%
+Then decode the SAMLResponse posted to login.srf and read the summary.
+
+62
+00:08:19.000 --> 00:08:26.400 line:83% position:50% align:center size:92%
+Expected shape: the Issuer is the realm URL, and the whole Response is signed.
+
+63
+00:08:26.400 --> 00:08:31.300 line:83% position:50% align:center size:92%
+The assertion is signed too, and its NameID is persistent.
+
+64
+00:08:31.300 --> 00:08:37.300 line:83% position:50% align:center size:92%
+The recipient is the Entra ACS, https://login.microsoftonline.com/login.srf.
+
+65
+00:08:37.300 --> 00:08:44.600 line:83% position:50% align:center size:92%
+The audience is the Contoso tenant URL, which is also the Keycloak client ID.
+
+66
+00:08:44.600 --> 00:08:49.200 line:83% position:50% align:center size:92%
+The emailaddress attribute carries the guest’s email.
+
+67
+00:08:49.200 --> 00:08:57.200 line:83% position:50% align:center size:92%
+In the PoC, tests T1 and T2 pass. T3 to T8 (redemption, portal sign-in, MFA, authorization) are still open.
+
+68
+00:08:57.200 --> 00:09:03.800 line:83% position:50% align:center size:92%
+Operate: add a new realm signing key that is not active yet.
+
+69
+00:09:03.800 --> 00:09:10.700 line:83% position:50% align:center size:92%
+In the change window, activate it and confirm the metadata publishes the new certificate.
+
+70
+00:09:10.700 --> 00:09:18.600 line:83% position:50% align:center size:92%
+Update the federation certificate in Entra straight away: an early rotation is not renewed automatically.
+
+71
+00:09:18.600 --> 00:09:25.100 line:83% position:50% align:center size:92%
+After a verified sign-in with the new key, make the old key passive, then remove it.
+
+72
+00:09:25.100 --> 00:09:34.000 line:83% position:50% align:center size:92%
+Recap: Keycloak on Azure is proven. The SAML client, the Entra IdP, the guest and RBAC are configured, not yet end to end.
+
+73
+00:09:34.000 --> 00:09:44.500 line:83% position:50% align:center size:92%
+Next: guest redemption and Azure portal sign-in with MFA. The full guide, scripts and test plan are on this site.
