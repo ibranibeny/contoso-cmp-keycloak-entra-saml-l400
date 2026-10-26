@@ -1,0 +1,28 @@
+#cloud-config
+write_files:
+  - path: /opt/cmp/sso-keycloak.py
+    owner: root:root
+    permissions: '0700'
+    encoding: b64
+    content: __INSTALLER_BASE64__
+  - path: /etc/cmp-sso-keycloak.json
+    owner: root:root
+    permissions: '0600'
+    encoding: b64
+    content: __CONFIG_BASE64__
+  - path: /etc/systemd/system/cmp-sso-keycloak-install.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Install isolated SSO Keycloak and automatic HTTPS
+      Wants=network-online.target
+      After=network-online.target
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/python3 -B /opt/cmp/sso-keycloak.py install
+      TimeoutStartSec=2400
+      UMask=0077
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, start, --no-block, cmp-sso-keycloak-install.service]
